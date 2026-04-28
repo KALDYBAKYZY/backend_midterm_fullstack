@@ -5,45 +5,55 @@ const router = express.Router();
 
 const User = require("../models/User");
 
-
-// REGISTER
 router.post("/register", async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password required" });
+    }
+
     const existingUser = await User.findOne({ email });
+
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = new User({
+    const user = await User.create({
       email,
-      password: hashedPassword
+      password: hashedPassword,
+      wallet: 10000, // 🔥 важно для проекта
     });
 
-    await user.save();
-
-    res.json({ message: "User registered" });
-
+    res.status(201).json({
+      message: "User registered",
+      userId: user._id,
+    });
   } catch (err) {
+    console.log("REGISTER ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
 
-// LOGIN
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password required" });
+    }
+
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
@@ -54,9 +64,12 @@ router.post("/login", async (req, res) => {
       { expiresIn: "1d" }
     );
 
-    res.json({ token });
-
+    res.json({
+      token,
+      userId: user._id,
+    });
   } catch (err) {
+    console.log("LOGIN ERROR:", err);
     res.status(500).json({ error: err.message });
   }
 });
